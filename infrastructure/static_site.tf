@@ -59,6 +59,7 @@ resource "aws_route53_record" "root-a" {
     zone_id                = aws_cloudfront_distribution.root_s3_distribution.hosted_zone_id
     evaluate_target_health = false
   }
+  allow_overwrite = true
 }
 
 resource "aws_route53_record" "www-a" {
@@ -70,6 +71,7 @@ resource "aws_route53_record" "www-a" {
     zone_id                = aws_cloudfront_distribution.root_s3_distribution.hosted_zone_id
     evaluate_target_health = false
   }
+  allow_overwrite = true
 }
 
 resource "aws_route53_record" "cert_validation" {
@@ -232,6 +234,24 @@ resource "aws_s3_bucket" "www_bucket" {
 resource "aws_s3_bucket_acl" "www_bucket" {
   bucket = aws_s3_bucket.www_bucket.bucket
   acl = "public-read"
+  depends_on = [aws_s3_bucket_ownership_controls.www_bucket]
+}
+
+resource "aws_s3_bucket_ownership_controls" "www_bucket" {
+  bucket = aws_s3_bucket.www_bucket.id
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+  depends_on = [aws_s3_bucket_public_access_block.www_bucket]
+}
+
+resource "aws_s3_bucket_public_access_block" "www_bucket" {
+  bucket = aws_s3_bucket.www_bucket.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
 }
 
 resource "aws_s3_bucket_website_configuration" "www_bucket" {
@@ -262,6 +282,7 @@ resource "aws_s3_bucket" "root_bucket" {
 resource "aws_s3_bucket_acl" "root_bucket" {
   bucket = aws_s3_bucket.root_bucket.bucket
   acl = "public-read"
+  depends_on = [aws_s3_bucket_ownership_controls.root_bucket]
 }
 
 resource "aws_s3_bucket_website_configuration" "root_bucket" {
@@ -287,6 +308,22 @@ resource "aws_s3_bucket_cors_configuration" "root_bucket" {
   }
 }
 
+resource "aws_s3_bucket_ownership_controls" "root_bucket" {
+  bucket = aws_s3_bucket.root_bucket.id
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+  depends_on = [aws_s3_bucket_public_access_block.root_bucket]
+}
+
+resource "aws_s3_bucket_public_access_block" "root_bucket" {
+  bucket = aws_s3_bucket.root_bucket.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
 
 data "aws_iam_policy_document" "www_bucket" {
   statement {
@@ -310,6 +347,7 @@ data "aws_iam_policy_document" "www_bucket" {
 resource "aws_s3_bucket_policy" "www_bucket" {
   bucket = aws_s3_bucket.www_bucket.id
   policy = data.aws_iam_policy_document.www_bucket.json
+  depends_on = [aws_s3_bucket_ownership_controls.www_bucket]
 }
 
 
@@ -335,5 +373,6 @@ data "aws_iam_policy_document" "root_bucket" {
 resource "aws_s3_bucket_policy" "root_bucket" {
   bucket = aws_s3_bucket.root_bucket.id
   policy = data.aws_iam_policy_document.root_bucket.json
+  depends_on = [aws_s3_bucket_ownership_controls.root_bucket]
 }
 
